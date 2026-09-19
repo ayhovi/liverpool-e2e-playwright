@@ -1,27 +1,61 @@
 /**
- * Fixture que aplica playwright-extra + stealth para Chromium sobreescribiendo
- * únicamente el `context`, sin interferir con el browser nativo de Playwright.
+ * Fixture de anti-detección que funciona con cualquier browser (Chromium,
+ * Firefox, WebKit) sin interferir con el ciclo de vida del browser nativo
+ * que Playwright gestiona internamente por worker.
  *
- * Para Firefox y WebKit se reutiliza el browser nativo con opciones de contexto
- * enriquecidas (locale, timezone, headers) pero sin stealth, ya que esos engines
- * no exponen navigator.webdriver de la misma forma.
- *
- * IMPORTANTE: el browser se deja en manos de Playwright (scope worker interno).
- * Este fixture solo reemplaza el context (scope test) para inyectar las opciones
- * anti-detección, lo que evita cualquier conflicto de ciclo de vida en paralelo.
+ * Estrategia:
+ * - Usa siempre el `browser` fixture nativo de Playwright (scope worker).
+ * - Inyecta un script de stealth via addInitScript en el context de Chromium,
+ *   que es el único engine que expone navigator.webdriver = true en headless.
+ * - Firefox y WebKit reciben las opciones de locale/headers pero sin el script,
+ *   ya que no necesitan stealth para pasar los checks de Akamai.
  */
-import {
-  chromium as playwrightChromium,
-  test as base,
-  type BrowserContext,
-} from '@playwright/test';
-import { chromium as chromiumExtra } from 'playwright-extra';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+import { test as base, type BrowserContext } from '@playwright/test';
 
-chromiumExtra.use(StealthPlugin());
+// Snippet mínimo de stealth: oculta las propiedades que Akamai detecta.
+// Es equivalente a lo que hace puppeteer-extra-plugin-stealth pero inyectado
+// directamente en el context de Playwright, sin depender de un browser extra.
+const STEALTH_SCRIPT = `
+  // Elimina navigator.webdriver
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
 
-// Opciones de contexto compartidas por todos los browsers.
+  // Simula plugins de Chrome real
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => {
+      const arr = [
+        { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+        { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+        { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' },
+      ];
+      arr.item = (i) => arr[i];
+      arr.namedItem = (name) => arr.find(p => p.name === name) || null;
+      arr.refresh = () => {};
+      return arr;
+    },
+  });
+
+  // Simula languages reales
+  Object.defineProperty(navigator, 'languages', { get: () => ['es-MX', 'es', 'en-US', 'en'] });
+
+  // Oculta que Chrome está en modo automatizado
+  if (window.chrome) {
+    window.chrome.runtime = window.chrome.runtime || {};
+  } else {
+    Object.defineProperty(window, 'chrome', {
+      get: () => ({ runtime: {} }),
+    });
+  }
+
+  // Oculta el error de permisos que delata headless
+  const originalQuery = window.navigator.permissions?.query?.bind(navigator.permissions);
+  if (originalQuery) {
+    navigator.permissions.query = (parameters) =>
+      parameters.name === 'notifications'
+        ? Promise.resolve({ state: Notification.permission, name: 'notifications' } as PermissionStatus)
+        : originalQuery(parameters);
+  }
+`;
+
 const BASE_CONTEXT_OPTIONS = {
   locale: 'es-MX',
   timezoneId: 'America/Mexico_City',
@@ -31,80 +65,38 @@ const BASE_CONTEXT_OPTIONS = {
   },
 } as const;
 
-// Opciones adicionales solo para Chromium (fingerprint HTTP completo).
-const CHROMIUM_EXTRA_OPTIONS = {
-  userAgent:
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  extraHTTPHeaders: {
-    ...BASE_CONTEXT_OPTIONS.extraHTTPHeaders,
-    'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-  },
-} as const;
-
-// Browser de stealth reutilizado por worker (solo para Chromium).
-// Se inicializa la primera vez que se necesita y se cierra al final del worker.
-let stealthBrowserInstance: Awaited<ReturnType<typeof chromiumExtra.launch>> | null = null;
-let stealthBrowserRefCount = 0;
-
-async function getStealthBrowser(launchOptions: Record<string, unknown>) {
-  if (!stealthBrowserInstance) {
-    stealthBrowserInstance = await chromiumExtra.launch({
-      ...launchOptions,
-      executablePath: playwrightChromium.executablePath(),
-      args: [
-        ...((launchOptions?.args as string[]) ?? []),
-        '--disable-blink-features=AutomationControlled',
-        '--no-sandbox',
-      ],
-    });
-  }
-  stealthBrowserRefCount++;
-  return stealthBrowserInstance;
-}
-
-async function releaseStealthBrowser() {
-  stealthBrowserRefCount--;
-  if (stealthBrowserRefCount <= 0 && stealthBrowserInstance) {
-    await stealthBrowserInstance.close();
-    stealthBrowserInstance = null;
-    stealthBrowserRefCount = 0;
-  }
-}
+const CHROMIUM_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 export const test = base.extend<{ context: BrowserContext }>({
   /**
-   * Reemplaza el context de Playwright con uno que incluye las opciones de
-   * anti-detección. Para Chromium usa playwright-extra+stealth; para otros
-   * browsers usa el browser nativo con opciones de contexto enriquecidas.
+   * Reemplaza el context de Playwright sin tocar el browser.
+   * El browser nativo (scope worker) lo gestiona Playwright internamente.
    */
-  context: async ({ browser, launchOptions }, use, testInfo) => {
+  context: async ({ browser }, use, testInfo) => {
     const browserName = testInfo.project.use.browserName ?? 'chromium';
-    let context: BrowserContext;
+    const isChromium = browserName === 'chromium';
 
-    if (browserName === 'chromium') {
-      // Chromium: usar playwright-extra+stealth con browser propio por worker.
-      const stealthBrowser = await getStealthBrowser(
-        launchOptions as Record<string, unknown>,
-      );
-      context = await stealthBrowser.newContext({
-        ...BASE_CONTEXT_OPTIONS,
-        ...CHROMIUM_EXTRA_OPTIONS,
-      });
-    } else {
-      // Firefox / WebKit: usar el browser nativo que Playwright ya gestiona.
-      context = await browser.newContext({
-        ...BASE_CONTEXT_OPTIONS,
-      });
+    const context = await browser.newContext({
+      ...BASE_CONTEXT_OPTIONS,
+      ...(isChromium && {
+        userAgent: CHROMIUM_UA,
+        extraHTTPHeaders: {
+          ...BASE_CONTEXT_OPTIONS.extraHTTPHeaders,
+          'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"Windows"',
+        },
+      }),
+    });
+
+    // Inyecta el script de stealth solo en Chromium, antes de cada navegación.
+    if (isChromium) {
+      await context.addInitScript(STEALTH_SCRIPT);
     }
 
     await use(context);
     await context.close();
-
-    if (browserName === 'chromium') {
-      await releaseStealthBrowser();
-    }
   },
 
   page: async ({ context }, use) => {
