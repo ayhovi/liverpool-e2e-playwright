@@ -1,0 +1,27 @@
+{
+  "name": "liverpool-e2e-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright E2E challenge for Liverpool: UI search, network interception and UI/API cross-validation.",
+  "scripts": {
+    "test": "playwright test --project=chromium --grep-invert @optional",
+    "test:headed": "playwright test --project=chromium --headed --grep-invert @optional",
+    "test:debug": "playwright test --project=chromium --debug --grep-invert @optional",
+    "test:cross-browser": "playwright test --grep-invert @optional",
+    "test:a11y": "playwright test tests/accessibility.spec.ts --project=chromium",
+    "test:optional": "playwright test --grep @optional --grep-invert @visual --project=chromium",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit",
+    "test:visual": "playwright test tests/visual-regression.spec.ts --project=chromium",
+    "test:visual:update": "playwright test tests/visual-regression.spec.ts --project=chromium --update-snapshots"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.3",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
