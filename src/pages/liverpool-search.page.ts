@@ -348,6 +348,11 @@ export class LiverpoolSearchPage {
   }
 
   async waitForProducts(): Promise<void> {
+    // Scroll suave hacia la zona de resultados para disparar el lazy-load
+    // de las tarjetas de producto antes de esperar que sean visibles.
+    await this.page.evaluate(() => window.scrollBy(0, 400));
+    await this.page.waitForTimeout(500);
+
     const productLinks = this.page.locator('a[href*="/tienda/pdp/"]:visible');
     await expect(productLinks.first(), 'No se cargaron resultados de productos').toBeVisible({
       timeout: 20_000,
