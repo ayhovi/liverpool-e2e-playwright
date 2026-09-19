@@ -38,7 +38,17 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    // Firefox y WebKit corren en paralelo contra un sitio real — necesitan
+    // más tiempo que Chromium porque no tienen stealth y pueden ser más lentos.
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      timeout: 150_000,
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+      timeout: 150_000,
+    },
   ],
 });
