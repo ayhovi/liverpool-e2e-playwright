@@ -1,5 +1,7 @@
 # Liverpool E2E Automation Challenge
 
+[![E2E Tests](https://github.com/ayhovi/liverpool-e2e-playwright/actions/workflows/test.yml/badge.svg)](https://github.com/ayhovi/liverpool-e2e-playwright/actions/workflows/test.yml)
+
 Framework minimalista con **Playwright + TypeScript** para automatizar búsqueda, filtro, ordenamiento y validación cruzada UI vs respuesta de red en Liverpool.
 
 ## Arquitectura
@@ -167,4 +169,4 @@ La regresión visual requiere un baseline versionado. Si el baseline se genera e
 - publica `test-results/` cuando existe un fallo;
 - mediante `workflow_dispatch` permite generar o comparar el baseline visual sin convertirlo en gate del flujo obligatorio.
 
-> Antes de enviar el reto, agrega aquí el badge o enlace de una ejecución verde de GitHub Actions. Ejemplo: `[![E2E Tests](https://github.com/OWNER/REPO/actions/workflows/test.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/test.yml)`.
+> El badge de la última ejecución está en la cabecera del README.
