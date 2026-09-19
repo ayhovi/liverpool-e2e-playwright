@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../src/fixtures/stealth';
 import { LiverpoolSearchPage } from '../src/pages/liverpool-search.page';
 
 const visualSearchTerm = process.env.VISUAL_SEARCH_TERM ?? 'playstation 5';

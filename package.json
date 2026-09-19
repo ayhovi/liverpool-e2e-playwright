@@ -19,6 +19,8 @@
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.3",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "typescript": "5.9.2"
   },
   "engines": {

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test } from '@playwright/test';
+import { test } from '../src/fixtures/stealth';
 import { LiverpoolSearchPage } from '../src/pages/liverpool-search.page';
 
 // Bonus: reporte informativo. No bloquea CI por deuda de accesibilidad ajena a esta suite.

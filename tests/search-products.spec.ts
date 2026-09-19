@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../src/fixtures/stealth';
 import { getSearchCases } from '../src/data/search-data';
 import { LiverpoolSearchPage } from '../src/pages/liverpool-search.page';
 import { NetworkProductCollector } from '../src/services/network-product-collector';

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../src/fixtures/stealth';
 import { LiverpoolSearchPage } from '../src/pages/liverpool-search.page';
 
 // Bonus opcional: el presupuesto puede ajustarse por entorno sin modificar código.
