@@ -15,7 +15,9 @@ export default defineConfig({
   outputDir: 'test-results',
   use: {
     baseURL: process.env.BASE_URL ?? 'https://www.liverpool.com.mx',
-    headless: false,
+    // En CI no hay pantalla, se fuerza headless. Localmente se corre headed
+    // para evitar el bloqueo de Akamai Bot Manager en modo headless.
+    headless: !!process.env.CI,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     // El reto exige screenshots ante fallo. Video queda apagado para mantener
