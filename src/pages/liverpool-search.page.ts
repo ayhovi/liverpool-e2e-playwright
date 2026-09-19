@@ -42,6 +42,11 @@ export class LiverpoolSearchPage {
   }
 
   async gotoHome(): Promise<void> {
+    // Visita primero la raíz para establecer cookies y pasar los checks
+    // iniciales de Akamai antes de navegar a la página con contenido.
+    await this.page.goto('/', { waitUntil: 'domcontentloaded' });
+    await this.page.waitForTimeout(1_500);
+
     await this.page.goto('/tienda/home', { waitUntil: 'domcontentloaded' });
     await expect(this.searchInput, 'No se encontró el buscador de Liverpool').toBeVisible({
       timeout: 15_000,
