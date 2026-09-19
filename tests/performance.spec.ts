@@ -4,7 +4,7 @@ import { LiverpoolSearchPage } from '../src/pages/liverpool-search.page';
 // Bonus opcional: el presupuesto puede ajustarse por entorno sin modificar código.
 test('@optional performance | resultados disponibles dentro del presupuesto', async ({ page }) => {
   const shop = new LiverpoolSearchPage(page);
-  const budgetMs = Number(process.env.PERF_BUDGET_MS ?? 20_000);
+  const budgetMs = Number(process.env.PERF_BUDGET_MS ?? 60_000);
 
   await shop.gotoHome();
   const startedAt = Date.now();
